@@ -11,7 +11,8 @@ import os
 # Here the Model class is defined (child-class from DartsModel) in which most of the data and properties for the
 # simulation are defined, e.g. for the reservoir/physics/sim_parameters/etc.
 class Model(DartsModel):
-    def __init__(self, n_points=64):
+    def __init__(self, filename_mesh, physics_type, bound_cond, const_perm, frac_aper, poro,
+                 inj_well_coords, prod_well_coords, n_points=64):
         """
         Class constructor of Model class
         :param n_points: number of discretization points for the parameter space
@@ -22,53 +23,14 @@ class Model(DartsModel):
 
         # Measure time spend on reading/initialization
         self.timer.node["initialization"].start()
-
-        """
-        NOTES on configuration: 
-            - Have five different types of meshes (very fine, fine, moderate, coarse, very coarse)
-                * Very fine (52K matrix and 4.2K fracture cells)  ==> mesh_type = 'mesh_clean_very_fine'
-                * Fine (14K matrix and 2.1K fracture cells)       ==> mesh_type = 'mesh_clean_fine' 
-                * Moderate (6.7K matrix and 1.2K fracture cells)  ==> mesh_type = 'mesh_clean_moderate'
-                * Very fine (2.7K matrix and 0.7K fracture cells) ==> mesh_type = 'mesh_clean_coarse'
-                * Fine (0.9K matrix and 0.3K fracture cells)      ==> mesh_type = 'mesh_clean_very_coarse'
-    
-            - Have two different types of boundary conditions (constant pressure/rate boundary, wells)
-                * Constant pressure/rate boundary             ==> bound_cond = 'const_pres_rate'
-                * Wells in bottom-left and top-right fracture ==> bound_cond = 'wells_in_frac'
-                
-            - Have two different physics implemented (dead oil & geothermal)
-                * Dead oil physics   ==> physics_type = 'dead_oil'
-                * Geothermal physics ==> physics_type = 'geothermal'
-        """
-        self.mesh_type = 'mesh_clean_moderate'
-        self.bound_cond = 'wells_in_frac'
-        self.physics_type = 'geothermal'
+        self.bound_cond = bound_cond
+        self.physics_type = physics_type
 
         # Some permeability input data for the simulation
-        const_perm = 10
         permx = const_perm  # Matrix permeability in the x-direction [mD]
         permy = const_perm  # Matrix permeability in the y-direction [mD]
         permz = const_perm  # Matrix permeability in the z-direction [mD]
-        poro = 0.2  # Matrix porosity [-]
-        frac_aper = 1e-3  # Aperture of fracture cells (but also takes a list of apertures for each segment) [m]
-
-        inj_well_coords = [[925, 960, 25]]
-        prod_well_coords = [[50, 160, 25]]
-
-        mesh_file = ''
-        if self.mesh_type == 'mesh_clean_very_fine':
-            # File name of the GMSH file:
-            mesh_file = os.path.join('mesh_files', 'mesh_3.75_real_6.msh')
-        elif self.mesh_type == 'mesh_clean_fine':
-            mesh_file = os.path.join('mesh_files', 'mesh_7.5_real_6.msh')
-        elif self.mesh_type == 'mesh_clean_moderate':
-            mesh_file = os.path.join('mesh_files', 'mesh_15_real_6.msh')
-        elif self.mesh_type == 'mesh_clean_coarse':
-            mesh_file = os.path.join('mesh_files', 'mesh_30_real_6.msh')
-        elif self.mesh_type == 'mesh_clean_very_coarse':
-            mesh_file = os.path.join('mesh_files', 'mesh_60_real_6.msh')
-        else:
-            print("--------ERROR SPECIFY CORRECT MESH NAME--------")
+        mesh_file = filename_mesh
 
         # Instance of unstructured reservoir class from reservoir.py file.
         # When calling this class constructor, the def __init__(self, arg**) is executed which created the instance of

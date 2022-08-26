@@ -47,7 +47,7 @@ Mesh = meshio.read(m.reservoir.file_path)
 # Properties for writing to vtk format:
 # output_directory = 'trial_dir'  # Specify output directory here
 output_directory = 'sol_{:s}_{:s}_{:s}'.format(m.mesh_type, m.bound_cond, m.physics_type)
-num_wells_tot = 2  # Specify here how much wells are being used
+num_wells_tot = len(m.reservoir.well_perf_loc[0]) + len(m.reservoir.well_perf_loc[1])  # Specify here how much wells are being used
 # Specify here the number of properties you want to extract (properties are based on selected physics, see model):
 tot_properties = 2
 

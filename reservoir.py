@@ -7,7 +7,8 @@ from itertools import compress
 
 # Definitions for the unstructured reservoir class:
 class UnstructReservoir:
-    def __init__(self, permx, permy, permz, frac_aper, mesh_file, poro, bound_cond, physics_type):
+    def __init__(self, permx, permy, permz, frac_aper, mesh_file, poro, bound_cond, physics_type,
+                 inj_well_coords, prod_well_coords):
         """
         Class constructor for UnstructReservoir class
         :param permx: Matrix permeability in the x-direction (scalar or vector)
@@ -19,6 +20,8 @@ class UnstructReservoir:
         :param bound_cond: switch which determines the type of boundary conditions used (string)
         """
         # Create mesh object (C++ object used by DARTS for all mesh related quantities):
+        self.inj_well_coords = inj_well_coords
+        self.prod_well_coords = prod_well_coords
         self.mesh = conn_mesh()
 
         # Specify well index and store matrix geometry:
@@ -108,7 +111,7 @@ class UnstructReservoir:
             dummy_vol = np.array(self.volume, copy=True)
             self.max_well_vol = np.max([np.max(dummy_vol[self.left_boundary_cells]),
                                         np.max(dummy_vol[self.right_boundary_cells])])
-        elif bound_cond == 'wells_in_frac':
+        else:
             if 0:
                 # Find fractures in the bottom-left and top-right of reservoir:
                 bot_left_frac = np.array([inf, inf, inf])
@@ -135,17 +138,30 @@ class UnstructReservoir:
 
                 self.well_perf_loc = np.array([bot_left_id, top_right_id])
             else:
+                if bound_cond == 'wells_in_frac':
+                    offset = 0
+                    left_int = 0
+                    right_int = self.num_frac
+                elif bound_cond == 'wells_in_mat':
+                    offset = self.num_frac
+                    left_int = self.num_frac
+                    right_int = self.num_frac + self.num_mat
+                elif bound_cond == 'wells_in_nearest_cell':
+                    offset = 0
+                    left_int = 0
+                    right_int = self.num_frac + self.num_mat
+
                 # Find closest control volume to dummy_well point:
                 self.injection_wells = []
-                dummy_well_inj = [[50, 160, 25]]
+                dummy_well_inj = self.inj_well_coords
 
                 self.store_dist_to_well_inj = np.zeros((len(dummy_well_inj),))
                 self.store_coord_well_inj = np.zeros((len(dummy_well_inj), 3))
                 ii = 0
                 for ith_inj in dummy_well_inj:
-                    dist_to_well_point = np.linalg.norm(self.unstr_discr.centroid_all_cells[:self.num_frac] - ith_inj,
+                    dist_to_well_point = np.linalg.norm(self.unstr_discr.centroid_all_cells[left_int:right_int] - ith_inj,
                                                         axis=1)
-                    cell_id = np.argmin(dist_to_well_point)
+                    cell_id = np.argmin(dist_to_well_point) + offset
                     self.injection_wells.append(cell_id)
 
                     self.store_coord_well_inj[ii, :] = self.unstr_discr.centroid_all_cells[cell_id]
@@ -153,15 +169,15 @@ class UnstructReservoir:
                     ii += 1
 
                 self.production_wells = []
-                dummy_well_prod = [[925, 960, 25]]
+                dummy_well_prod = self.prod_well_coords
 
                 self.store_dist_to_well_prod = np.zeros((len(dummy_well_prod),))
                 self.store_coord_well_prod = np.zeros((len(dummy_well_prod), 3))
                 ii = 0
                 for ith_prod in dummy_well_prod:
-                    dist_to_well_point = np.linalg.norm(self.unstr_discr.centroid_all_cells[:self.num_frac] - ith_prod,
+                    dist_to_well_point = np.linalg.norm(self.unstr_discr.centroid_all_cells[left_int:right_int] - ith_prod,
                                                         axis=1)
-                    cell_id = np.argmin(dist_to_well_point)
+                    cell_id = np.argmin(dist_to_well_point) + offset
                     self.production_wells.append(cell_id)
 
                     self.store_coord_well_prod[ii, :] = self.unstr_discr.centroid_all_cells[cell_id]
@@ -169,9 +185,6 @@ class UnstructReservoir:
                     ii += 1
 
                 self.well_perf_loc = np.array([self.injection_wells, self.production_wells])
-
-        else:
-            print("--------ERROR SPECIFY CORRECT PHYSICS NAME--------")
 
         # Create empty list of wells:
         self.wells = []
@@ -288,31 +301,31 @@ class UnstructReservoir:
         Class method which initializes the wells (adding wells and their perforations to the reservoir)
         :return:
         """
-        # Add injection well:
-        self.add_well("I1", 0.5)
         if self.bound_cond == 'const_pres_rate':
+            self.add_well("I1", 0.5)
             # Perforate all boundary cells:
             for nth_perf in range(len(self.left_boundary_cells)):
                 well_index = self.mesh.volume[self.left_boundary_cells[nth_perf]] / self.max_well_vol * self.well_index
                 self.add_perforation(well=self.wells[-1], res_block=self.left_boundary_cells[nth_perf],
                                      well_index=well_index)
 
-        elif self.bound_cond == 'wells_in_frac':
-            # Only perforating the single fracture/matrix block
-            self.add_perforation(self.wells[-1], res_block=self.well_perf_loc[0], well_index=self.well_index)
+        else:
+            for i in range(len(self.well_perf_loc[0])):
+                self.add_well(f'I{i + 1}', 0.5)
+                self.add_perforation(self.wells[-1], res_block=self.well_perf_loc[0][i], well_index=self.well_index)
 
-        # Add production well:
-        self.add_well("P1", 0.5)
         if self.bound_cond == 'const_pres_rate':
+            self.add_well("P1", 0.5)
             # Perforate all boundary cells:
             for nth_perf in range(len(self.right_boundary_cells)):
                 well_index = self.mesh.volume[self.right_boundary_cells[nth_perf]] / self.max_well_vol * self.well_index
                 self.add_perforation(self.wells[-1], res_block=self.right_boundary_cells[nth_perf],
                                      well_index=well_index)
 
-        elif self.bound_cond == 'wells_in_frac':
-            # Only perforating the single fracture/matrix block
-            self.add_perforation(self.wells[-1], res_block=self.well_perf_loc[1], well_index=self.well_index)
+        else:
+            for i in range(len(self.well_perf_loc[1])):
+                self.add_well(f'P{i + 1}', 0.5)
+                self.add_perforation(self.wells[-1], res_block=self.well_perf_loc[1][i], well_index=self.well_index)
 
         # Add wells to the DARTS mesh object and sort connection (DARTS related):
         self.mesh.add_wells(ms_well_vector(self.wells))
