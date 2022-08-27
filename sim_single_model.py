@@ -8,9 +8,9 @@ import pandas as pd
 def simulate_single_realization(filename_mesh, physics_type, bound_cond, const_perm,
                                 frac_aper, poro, filename_log, filename_simdata, inj_well_coords, prod_well_coords,
                                 OUT_DIR, max_time_step_size, size_report_step, end_time):
+    redirect_darts_output(filename_log)
     m = Model(filename_mesh, physics_type, bound_cond, const_perm, frac_aper, poro, inj_well_coords, prod_well_coords)
     m.init()
-    # redirect_darts_output(filename_log)
     m.params.max_ts = max_time_step_size
     start_time = 0
 

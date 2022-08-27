@@ -96,7 +96,7 @@ class Model(DartsModel):
         # Takes care of well controls, argument of the function is (in case of bhp) the bhp pressure and (in case of
         # rate) water/oil rate:
         for i, w in enumerate(self.reservoir.wells):
-            if i == 0:
+            if 'I' in w.name or 'INJ' in w.name:
                 # Add controls for injection well:
                 if self.physics_type == 'dead_oil':
                     # For BHP control in injection well we usually specify pressure and composition (upstream) but here
