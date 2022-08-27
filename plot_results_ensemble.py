@@ -97,6 +97,7 @@ for i in range(len(properties_to_plot)):
     axs.tick_params(axis='x', labelsize=16)
     axs.tick_params(axis='y', labelsize=16)
     plt.tight_layout()
+    plt.savefig(os.path.join(DIR_INPUT, f'Injection_{loc_property}.pdf'))
     plt.show()
 
     fig, axs = plt.subplots(1, 1, figsize=(5, 5), dpi=400, facecolor='w', edgecolor='k')
@@ -124,4 +125,5 @@ for i in range(len(properties_to_plot)):
     axs.tick_params(axis='x', labelsize=16)
     axs.tick_params(axis='y', labelsize=16)
     plt.tight_layout()
+    plt.savefig(os.path.join(DIR_INPUT, f'Production_{loc_property}.pdf'))
     plt.show()
